@@ -1,0 +1,8 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+${DB_PARENT_DIR}/scripts/clone-standby ${DB_PARENT_DIR} ${DB_DIR_NAME} ${DB_SERVICE_NAME}
+sudo service repmgrd restart

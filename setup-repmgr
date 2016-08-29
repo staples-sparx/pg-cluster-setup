@@ -1,0 +1,68 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+usage() {
+    cat <<EOF
+  USAGE: ${me} <postgresql_version> <repmgr_version>
+EOF
+}
+
+if [ $# -ne 2 ] ; then
+    usage
+    exit 1
+fi
+
+POSTGRESQL_VERSION=$1
+REPMGR_VERSION=$2
+
+
+install() {
+    pg_version=$1
+    repmgr_version=$2
+
+    yes Y | sudo apt-get -o Dpkg::Options::=--force-confdef \
+		 -o Dpkg::Options::=--force-confnew \
+		 install --no-install-recommends postgresql-${pg_version}-repmgr=${repmgr_version}
+
+    yes Y | sudo apt-get -o Dpkg::Options::=--force-confdef \
+		 -o Dpkg::Options::=--force-confnew \
+		 install --no-install-recommends repmgr=${repmgr_version}
+
+    # sudo update-alternatives --remove-all repmgr
+    sudo update-alternatives --install /usr/bin/repmgr repmgr \
+	 /usr/lib/postgresql/${pg_version}/bin/repmgr 1;
+
+    # sudo update-alternatives --remove-all repmgrd
+    sudo update-alternatives --install /usr/bin/repmgrd repmgrd \
+	 /usr/lib/postgresql/${pg_version}/bin/repmgrd 1;
+
+    echo ----- repmgrd installed ----
+    echo ------ repmgrd version -----
+    repmgrd --version
+    echo -----------------------------
+}
+
+configure() {
+	sudo mkdir -p /etc/repmgr
+	sudo cp ${PG_CLUSTER_DIR}/repmgrd.conf /etc/default/repmgrd
+	${SHARED}/m4-conf update shared/pg-cluster/repmgr.conf /apps/${SERVICE}/repmgr.conf \
+	  -D__SERVICE__=${SERVICE} \
+	  -D__NODE_NAME__=${HOST} \
+	  -D__CLUSTER_NAME__=${ENV} \
+	  -D__NODE_NUM__=${NODE_NUM} \
+	  -D__NODE_PRIORITY__=${NODE_PRIORITY}
+}
+
+do_not_install_if_already_installed() {
+    if repmgr --version; then
+	echo "repmgr is already setup."
+	exit 0
+    fi
+}
+
+configure
+do_not_install_if_already_installed
+install ${POSTGRESQL_VERSION} ${REPMGR_VERSION}

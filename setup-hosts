@@ -1,0 +1,8 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+sudo cp ${PG_CLUSTER_DIR}/hosts.tmpl /etc/hosts
+cat ${NODES} |awk '{print $2,$1}' | sudo tee -a /etc/hosts

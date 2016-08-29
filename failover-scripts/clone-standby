@@ -1,0 +1,52 @@
+#!/bin/bash
+
+set -ex
+
+usage() {
+    cat <<EOF
+  USAGE: ${me} <db-parent-dir> <db-dir-name> <db-service-name>
+EOF
+}
+
+if [ $# -ne 3 ] ; then
+    usage
+    exit 1
+fi
+
+DB_PARENT_DIR=$1
+DB_DIR_NAME=$2
+DB_SERVICE_NAME=$3
+DB_DIR=${DB_PARENT_DIR}/${DB_DIR_NAME}
+
+start_clone() {
+    sudo -u deploy-user /usr/bin/repmgr -f ${DB_PARENT_DIR}/repmgr.conf -D ${DB_DIR} -d repmgr -h `cat ${DB_PARENT_DIR}/nodes.info | grep master | awk '{print $2}'` -p 5432 -U repmgr standby clone --rsync-only --force --verbose
+    sudo rm -f /tmp/recovery.conf
+    echo "standby_mode = 'on'" > /tmp/recovery.conf
+    echo "primary_conninfo = 'port=5432 host=`cat ${DB_PARENT_DIR}/nodes.info | grep master | awk '{print $2}'` user=repmgr application_name=${HOSTNAME}'" >> /tmp/recovery.conf
+    sudo cp /tmp/recovery.conf ${DB_DIR}/recovery.conf
+    sudo chown deploy-user ${DB_DIR}/recovery.conf
+    sudo service ${DB_SERVICE_NAME} restart
+    for i in `seq 50`; do nc -v -w 1 localhost 5432 </dev/null && break ; sleep 1; done
+    sleep 1
+    sudo -u deploy-user /usr/bin/repmgr -f ${DB_PARENT_DIR}/repmgr.conf standby register --force
+    echo "Standby register completed with status:" $?
+}
+
+do_not_run_if_db_is_running() {
+    if nc -v -w 1 localhost 5432; then
+	echo "DB is RUNNING, not safe to clone. Aborting"
+	exit 0
+    fi
+}
+
+do_not_run_if_already_cloned() {
+    if [ -f ${DB_DIR}/recovery.conf ]; then
+       echo "This DB was cloned previously."
+       exit 0
+    fi
+}
+
+do_not_run_if_db_is_running
+do_not_run_if_already_cloned
+echo "DB is NOT RUNNING, safe to clone"
+start_clone

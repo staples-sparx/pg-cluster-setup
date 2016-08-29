@@ -1,0 +1,44 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+ZFS_DB_DATASET=Pool/Apps/${SERVICE}/${DB_DIR_NAME}
+
+check_dependencies() {
+    if [ ! -d "${DB_PARENT_DIR}" ] ; then
+	echo "${DB_PARENT_DIR} needs to exist."
+	exit 1
+    fi
+
+    if [ ! -x "/usr/lib/postgresql/9.3/bin/postgres" ] ; then
+	echo "Postgres needs to be installed."
+	exit 1
+    fi
+}
+
+create_zfs_datasets() {
+    if ! sudo zfs list ${ZFS_DB_DATASET} ; then
+	sudo zfs create -o recordsize=${ZFS_RECORD_SIZE} -o primarycache=${ZFS_PRIMARY_CACHE} ${ZFS_DB_DATASET}
+    fi
+    if ! sudo zfs list ${ZFS_DB_DATASET}/pg_xlog ; then
+	sudo zfs create -o recordsize=${ZFS_RECORD_SIZE} -o primarycache=${ZFS_PRIMARY_CACHE} ${ZFS_DB_DATASET}/pg_xlog
+    fi
+    sudo chown -R deploy-user ${DB_DIR}
+    sudo chmod 700 ${DB_DIR}
+}
+
+copy_empty_db() {
+    if [ ! -d "${DB_PARENT_DIR}/empty-db" ] ; then
+	sudo -u deploy-user /usr/lib/postgresql/9.3/bin/initdb -D ${DB_PARENT_DIR}/empty-db
+	sudo chmod 755 ${DB_PARENT_DIR}
+	sudo chmod 744 ${DB_PARENT_DIR}/empty-db/PG_VERSION
+	sudo -u deploy-user bash -c "cp -rf ${DB_PARENT_DIR}/empty-db/* ${DB_DIR}"
+	sudo chmod 700 ${DB_DIR}
+    fi
+}
+
+check_dependencies
+create_zfs_datasets
+copy_empty_db

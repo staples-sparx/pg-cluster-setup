@@ -1,0 +1,35 @@
+#                                              -*- sh -*-
+# Check that a directory is present
+# optionally, check the owner, group and permissions also
+# (in that strict order)
+dir=$1
+expected_owner=$2
+expected_group=$3
+expected_permissions=$4
+
+if [ ! -d "${dir}" ] ; then
+  printf "\n\033[31m   *** ERROR *** No dir >${dir}< \033[0m\n\n" ;
+fi
+
+if [ ! "" = "$2" ] ; then
+	owner=$(stat -c %U $dir)
+	if [ ! "${expected_owner}" = "${owner}" ] ; then
+		printf "\n\033[31m   *** ERROR *** Must be owned by >${expected_owner}<, got >${owner}< \033[0m\n\n"
+	fi
+fi
+
+if [ ! "" = "$3" ] ; then
+	group=$(stat -c %G $dir)
+	if [ ! "${expected_group}" = "${group}" ] ; then
+		printf "\n\033[31m   *** ERROR *** Must be owned by group >${expected_group}<, got >${group}< \033[0m\n\n"
+	fi
+fi
+
+if [ ! "" = "$4" ] ; then
+	permissions=$(stat -c %a $dir)
+	if [ ! "${expected_permissions}" = "${permissions}" ]; then
+		printf "\n\033[31m   *** ERROR *** Expected permissions to be: >${expected_permissions}<, got >${permissions}<  \033[0m\n\n"
+	fi
+fi
+
+true

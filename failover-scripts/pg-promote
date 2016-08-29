@@ -1,0 +1,8 @@
+#!/bin/bash
+
+echo "Promoting standby ${HOSTNAME} to master"
+
+# TODO: Template this path
+
+/usr/bin/repmgr standby promote -f /path/to/repmgr.conf
+exit 0

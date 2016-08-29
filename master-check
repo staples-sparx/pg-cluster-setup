@@ -1,0 +1,16 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+check_pg_hba_conf() {
+    sudo cp ${PG_CLUSTER_DIR}/pg_hba.conf.tmpl /tmp/pg_hba.conf
+    cat ${NODES} | cut -d ' ' -f 2 \
+	| awk '{print "host all all " $1 "/32 trust""\n""host replication all " $1 "/32 trust"}' \
+	| sudo tee -a /tmp/pg_hba.conf
+    sudo chmod 777 /tmp/pg_hba.conf
+    sudo colordiff /tmp/pg_hba.conf ${DB_DIR}/pg_hba.conf || true
+}
+
+check_pg_hba_conf

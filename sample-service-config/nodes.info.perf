@@ -1,0 +1,4 @@
+sample-service-api-1-perf 10.100.41.228 standby 2 102 5001 api
+sample-service-api-2-perf 10.100.41.238 master 3 101 5001 api
+sample-service-reporting-0-perf 10.100.41.61 standby 4 1 5011 reporting
+sample-service-reporting-1-perf 10.100.40.39 standby 5 1 5011 reporting

@@ -1,0 +1,5 @@
+sample-service-api-0-dev 33.33.33.33 master 1 100 5001 api 8K metadata
+sample-service-api-1-dev 33.33.33.34 standby 2 101 5001 api 8K metadata
+sample-service-api-2-dev 33.33.33.35 standby 3 102 5001 api 8K metadata
+sample-service-reporting-0-dev 33.33.33.36 standby 4 -1 5011 reporting 128K all
+sample-service-reporting-1-dev 33.33.33.37 standby 5 -1 5011 reporting 128K all

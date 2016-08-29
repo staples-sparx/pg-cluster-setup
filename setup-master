@@ -1,0 +1,43 @@
+#!/bin/bash
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+
+setup_hba_conf() {
+    sudo cp ${PG_CLUSTER_DIR}/pg_hba.conf.tmpl ${DB_DIR}/pg_hba.conf
+    cat ${NODES} | cut -d ' ' -f 2 \
+	| awk '{print"host all all " $1 "/32 trust""\n""host replication all " $1 "/32 trust"}' \
+	| sudo tee -a ${DB_DIR}/pg_hba.conf
+    sudo chmod 777 ${DB_DIR}/pg_hba.conf
+    sudo chown deploy-user ${DB_DIR}/pg_hba.conf
+}
+
+setup_repmgr() {
+    sudo -u deploy-user createuser -h localhost -p 5432 -s repmgr || true
+    sudo -u deploy-user createdb -h localhost -p 5432 -O repmgr repmgr || true
+    sudo -u deploy-user psql -h localhost -p 5432 -f /usr/share/postgresql/9.3/contrib/repmgr_funcs.sql repmgr
+    sudo -u deploy-user repmgr -f /apps/${SERVICE}/repmgr.conf master register --force
+    sudo service repmgrd restart
+}
+
+migrate_db() {
+    sudo -u deploy-user ${DB_MIGRATION_SCRIPT} sample-service_${ENV} 5432 localhost
+}
+
+create_db() {
+    db_exists=$(sudo -u deploy-user psql -h localhost -p 5432 -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='sample-service_dev'")
+    if [[ -z ${db_exists+false} || ${db_exists} != 1 ]] ; then
+	sudo -u deploy-user ${DB_CREATION_SCRIPT} ${DB_NAME} 5432 localhost
+	migrate_db
+    fi
+}
+
+start_db() {
+    sudo service ${DB_SERVICE_NAME} start || /bin/true
+    for i in $(seq 50); do nc -v -w 1 localhost 5432 </dev/null && break ; sleep 1; done
+}
+
+setup_hba_conf
+start_db
+create_db
+setup_repmgr

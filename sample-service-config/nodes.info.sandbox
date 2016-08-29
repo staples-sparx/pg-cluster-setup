@@ -1,0 +1,5 @@
+sample-service-api-0-integration 10.100.13.14 standby 1 105 5001 api
+sample-service-api-1-integration 10.100.13.15 master 2 100 5001 api
+sample-service-api-2-integration 10.100.13.247 standby 3 100 5001 api
+sample-service-reporting-0-integration 10.100.13.244 standby 4 0 5011 reporting
+sample-service-reporting-1-integration 10.100.13.245 standby 5 0 5011 reporting

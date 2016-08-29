@@ -1,0 +1,66 @@
+#!/bin/sh
+
+me=$(basename $0)
+TOP_DIR=$(cd "$(dirname $0)/.."; pwd)
+
+. "${TOP_DIR}/shared/prelude"
+. "${TOP_DIR}/shared/conf"
+
+usage() {
+  echo "
+Usage: ${me} [-u root] <template> <target>
+
+file is copied with sudo if when '-u root' option is provided
+
+"
+  exit 2;
+}
+
+check() {
+  as_user=$1
+  template=$2
+  target=$3
+  defs="$4"
+
+  m4_conf_check "${as_user}" "${template}" "${target}" "${defs}"
+  true
+}
+
+update() {
+  as_user=$1
+  template=$2
+  target=$3
+  shift 3
+  defs="$@"
+
+  m4_conf_update "${as_user}" "${template}" "${target}" "${defs}"
+}
+
+as_user=""
+while getopts u:?h OPTION
+do
+  case ${OPTION} in
+    u) as_user=${OPTARG} ;;
+    h) usage ;;
+    \?) usage ;;
+  esac
+done
+shift $((OPTIND-1))
+
+if [ "" = "$1" ]; then
+  die "You must supply a template";
+fi
+if [ "" = "$2" ]; then
+  die "You must supply a target";
+fi
+
+cmd="$1"
+template="$2"
+target="$3"
+shift 3
+
+case ${cmd} in
+    check) check "${as_user}" "${template}" "${target}" "$@";;
+    update) update "${as_user}" "${template}" "${target}" "$@" ;;
+    *) usage;;
+esac

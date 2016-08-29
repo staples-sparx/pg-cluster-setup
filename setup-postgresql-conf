@@ -1,0 +1,9 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+sudo -u deploy-user cp ${DB_CONF_DIR}/${NODE_MODE}/postgresql.conf.${ENV} ${POSTGRESQL_CONF_PATH}
+sudo chmod 777 ${POSTGRESQL_CONF_PATH}
+sudo chown deploy-user ${POSTGRESQL_CONF_PATH}

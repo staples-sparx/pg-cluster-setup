@@ -1,0 +1,5 @@
+sample-service-api-0-production 10.100.5.243 standby 22 100 5001 api
+sample-service-api-1-production 10.100.5.13 master 18 100 5001 api
+sample-service-api-2-production 10.100.5.26 standby 19 100 5001 api
+sample-service-reporting-1-production 10.100.5.241 standby 20 -1 5011 reporting
+sample-service-reporting-2-production 10.100.5.253 standby 21 -1 5011 reporting

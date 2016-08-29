@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+set -x
+
+ENV=$1
+DB_PARENT_DIR=$2
+
+usage() {
+    cat <<EOF
+  USAGE: ${me} <env> <db-parent-dir>
+EOF
+}
+
+if [ $# -ne 2 ] ; then
+    usage
+    exit 1
+fi
+
+echo "Cluster status:"
+sudo -u deploy-user repmgr -f ${DB_PARENT_DIR}/repmgr.conf cluster show
+
+echo "\nPriority status:"
+sudo -u deploy-user psql -h localhost -p 5432 -d repmgr -c "select * from repmgr_${ENV}.repl_nodes;"
+
+echo "Repmgrd status"
+for host in $(awk '{print $1}' ${DB_PARENT_DIR}/nodes.info); do
+   ret=$(sudo -u deploy-user ssh -o StrictHostKeyChecking=no $host "/etc/init.d/repmgrd status | cut -c 4-")
+   echo $host $ret
+done

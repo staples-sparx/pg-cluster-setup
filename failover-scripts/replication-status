@@ -1,0 +1,76 @@
+#!/bin/bash
+# Inspired by: http://jmorano.moretrix.com/2013/08/postgresql-9-2-master-slave-monitoring/
+
+MASTER=$(cat /apps/sample-service/cluster.info  | grep master | awk '{print $2}')
+
+CRITICAL_LIMIT=83886080 # 5 * 16MB, size of 5 WAL files
+WARNING_LIMIT=16777216 # 16 MB, size of 1 WAL file
+PSQL="sudo -u deploy-user psql -A -t -p 5432 -d postgres"
+STATE="UNKNOWN"
+
+echo "Replication status:"
+
+sudo -u deploy-user psql -h ${MASTER} -p 5432 -d postgres -c  "SELECT
+    application_name,client_addr,state,sync_state,sent_location,write_location,replay_location,
+    sent_offset - (
+        replay_offset - (sent_xlog - replay_xlog) * 255 * 16 ^ 6 ) AS byte_lag
+FROM (
+    SELECT
+        application_name,client_addr,state,sync_state,sent_location,write_location,replay_location,
+        ('x' || lpad(split_part(sent_location,   '/', 1), 8, '0'))::bit(32)::bigint AS sent_xlog,
+        ('x' || lpad(split_part(replay_location, '/', 1), 8, '0'))::bit(32)::bigint AS replay_xlog,
+        ('x' || lpad(split_part(sent_location,   '/', 2), 8, '0'))::bit(32)::bigint AS sent_offset,
+        ('x' || lpad(split_part(replay_location, '/', 2), 8, '0'))::bit(32)::bigint AS replay_offset
+    FROM pg_stat_replication
+) AS s;"
+
+echo "Replication delay and recovery status:"
+
+printf "%32s\t%11s\t%11s\t%11s\t%6s\t%6s\t%10s\t%10s\t%10s\n" host sent-xlog receive-xlog replay-xlog m-wals s-wals m-count s-count state
+
+
+for host in $(cat /apps/sample-service/cluster.info | grep -v master | awk '{print $1}'); do
+    master_lag=$(sudo -u deploy-user psql -A -t -h ${MASTER} -p 5432 -d postgres -c "select pg_xlog_location_diff(pg_current_xlog_location(), '0/0') AS offset")
+    receive_lag=$(${PSQL} -h $host -c "SELECT pg_xlog_location_diff(pg_last_xlog_receive_location(), '0/0') AS receive")
+    replay_lag=$(${PSQL} -h $host -c "SELECT pg_xlog_location_diff(pg_last_xlog_replay_location(), '0/0') AS replay")
+    replay_timediff=$(${PSQL} -h $host -c "select now() - pg_last_xact_replay_timestamp() AS replication_delay")
+    log_delay=$(${PSQL} -h $host -c "SELECT
+    CASE WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location()
+    THEN 0
+    ELSE EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp()) END AS log_delay")
+    session_count="-"
+    master_session_count="-"
+
+    if [[ $master_lag -eq '' || $receive_lag -eq '' || $replay_lag -eq '' ]]; then
+	STATE="CRITICAL"
+    else
+	if [[ $master_lag -eq $receive_lag && $master_lag -eq $replay_lag && $receive_lag -eq $replay_lag ]] ; then
+ 	    STATE="OK"
+	else
+            if [[ $master_lag -eq $receive_lag ]] ; then
+		if [[ $master_lag -ne $replay_lag ]] ; then
+                    if [ $(bc <<< $master_lag-$replay_lag) -lt $WARNING_LIMIT ]; then
+			STATE="OK:REPLAY"
+                    else
+			STATE="WARNING:REPLAY ($(bc <<< $master_lag-$replay_lag)bytes BEHIND (${replay_timediff}seconds))"
+                    fi
+		fi
+            else
+		if [ $(bc <<< $master_lag-$receive_lag) -gt $CRITICAL_LIMIT ]; then
+		    STATE="CRITICAL:STREAM (($(bc <<< $master_lag-$receive_lag)bytes))"
+		else
+                    if [ $(bc <<< $master_lag-$receive_lag) -lt $WARNING_LIMIT ]; then
+			STATE="OK:STREAM"
+                    else
+			STATE="WARNING:STREAM (($(bc <<< $master_lag-$replay_lag)bytes))"
+                    fi
+		fi
+            fi
+	fi
+    fi
+    master_lag_wals=$(($master_lag / $WARNING_LIMIT))
+    replay_lag_wals=$(($replay_lag / $WARNING_LIMIT))
+    actual_lag=$(($replay_lag - $master_lag))
+
+    printf "%32s\t%11s\t%11s\t%11s\t%6s\t%6s\t%10s\t%10s\t%10s\n" $host $master_lag $receive_lag $replay_lag ${master_lag_wals} ${replay_lag_wals} $master_session_count $session_count $STATE
+done

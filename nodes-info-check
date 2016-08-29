@@ -1,0 +1,8 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+${SHARED}/chk-file ${DB_PARENT_DIR}/nodes.info
+sudo colordiff ${DB_PARENT_DIR}/nodes.info ${NODES} || true

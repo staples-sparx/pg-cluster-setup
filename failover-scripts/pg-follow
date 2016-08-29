@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# TODO: Template this path
+
+/usr/bin/repmgr standby follow -f /apps/sample-service/repmgr.conf -W

@@ -1,0 +1,48 @@
+#!/bin/bash
+
+usage() {
+    cat <<EOF
+  USAGE: ${me} <revision-to-checkout>
+EOF
+}
+
+if [ $# -ne 1 ] ; then
+    usage
+    exit 1
+fi
+
+rev=$1
+APP_DIR="/apps/sample-service/repmgr-to-zk"
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+. ${SHARED}/deploy
+
+checkout() {
+    if [ ! -d "${APP_DIR}" ] ; then
+	sudo -u deploy-user bash -c 'cd /apps/sample-service && git clone git@github.com:staples-sparx/repmgr-to-zk.git repmgr-to-zk'
+    fi
+}
+
+install() {
+    sudo -u deploy-user bash -c "cd ${APP_DIR} && git fetch && git fetch --tags && git checkout ${rev}"
+    sudo -u deploy-user bash -c "cd ${APP_DIR} && lein deps"
+}
+
+configure() {
+    sudo mkdir -p /var/log/repmgr-to-zk/
+    sudo chown -R deploy-user /var/log/repmgr-to-zk/
+    sudo cp ${PG_CLUSTER_DIR}/repmgr-to-zk.conf /etc/init/repmgr-to-zk.conf
+    sudo cp ${DB_CONF_DIR}/repmgr-to-zk-config.edn.${ENV} ${APP_DIR}/resources/config.edn
+}
+
+start() {
+    sudo service repmgr-to-zk start || /bin/true
+}
+
+checkout
+configure
+install
+start

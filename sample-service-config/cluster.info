@@ -1,0 +1,6 @@
+db-parent-dir /apps/sample-service
+db-dir-name api-db
+db-service-name sample-service-db
+db-creation-script /apps/sample-service/code/bin/create-db
+db-migration-script /apps/sample-service/code/bin/migrate-db
+db-name sample-service_dev

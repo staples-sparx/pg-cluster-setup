@@ -1,0 +1,12 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+sudo cp ${NODES} ${DB_PARENT_DIR}/nodes.info
+sudo chown deploy-user ${DB_PARENT_DIR}/nodes.info
+
+sudo -u deploy-user mkdir -p ${DB_PARENT_DIR}/scripts
+sudo -u deploy-user cp -a ${PG_CLUSTER_DIR}/failover-scripts/* ${DB_PARENT_DIR}/scripts/
+sudo -u deploy-user chmod +x ${DB_PARENT_DIR}/scripts/ -R

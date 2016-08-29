@@ -1,0 +1,30 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+REPMGR_MASTER=$(sudo -u deploy-user /usr/bin/repmgr -f /apps/${SERVICE}/repmgr.conf cluster show \
+		       | grep master \
+		       | awk -F 'host=' '{print $2; fflush();}' \
+		       | awk '{print $1}')
+
+REPMGR_MODE=$(sudo -u deploy-user /usr/bin/repmgr -f /apps/${SERVICE}/repmgr.conf cluster show \
+		     | grep host=${HOST} \
+		     | egrep -o '[\*\s]*(master|standby)\s*|' \
+		     | xargs echo -n)
+
+echo REPMGR_MODE is ${REPMGR_MODE} and NODE_MODE is ${NODE_MODE}
+
+if [ -z "${NODE_MODE+nothing}" ] ; then
+   print_error "NODE_MODE is not assigned. Check the ${NODES} file."
+   exit 1
+fi
+
+# Abort if modes (standby/master) in nodes.info and repmgr do not match.
+if [ -z ${REPMGR_MASTER+false} ] ; then
+    if [ "${NODE_MODE}" != "${REPMGR_MODE}" ] ; then
+	print_error "The modes are different in nodes.info (${NODE_MODE}) and repmgr (${REPMGR_MODE}). Aborting!"
+	exit 1
+    fi
+fi

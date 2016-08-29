@@ -1,0 +1,7 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+${CUR_DIR}/${NODE_MODE}-check

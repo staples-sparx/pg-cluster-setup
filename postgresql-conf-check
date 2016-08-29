@@ -1,0 +1,8 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+sudo -u deploy-user ${SHARED}/chk-file ${POSTGRESQL_CONF_PATH}
+sudo colordiff ${POSTGRESQL_CONF_PATH} ${DB_CONF_DIR}/${NODE_MODE}/postgresql.conf.${ENV} || true

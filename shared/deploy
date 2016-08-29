@@ -1,0 +1,14 @@
+# -*- mode: sh -*-
+#
+
+me=$(basename $0)
+TOP_DIR=$(cd "$(dirname $0)/.."; pwd)
+ROOT_DIR=$(cd "$(dirname $0)/../.."; pwd)
+
+checkout() {
+    app_dir=$1
+    rev=$2
+
+    echo "Checking out application ${rev} to $(hostname) in ${app_dir}"
+    sudo -u deploy-user bash -c "cd ${app_dir} && git fetch && git fetch --tags && git checkout ${rev} && git submodule sync && git submodule update --init && git rev-parse HEAD"
+}

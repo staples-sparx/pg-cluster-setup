@@ -1,0 +1,25 @@
+#!/bin/sh
+
+CUR_DIR=$(cd "$(dirname $0)/"; pwd)
+. ${CUR_DIR}/env
+set -ex
+
+check_in_recovery() {
+    res=$(sudo -u deploy-user psql -h localhost -p 5432 -d ${DB_NAME} -tAc "SELECT pg_is_in_recovery();" || true)
+    if [ "${res}" = "f" ]; then
+	print_error "Standby is not in recovery. Something might be wrong."
+	exit 1
+    fi
+}
+
+repmgr_status() {
+    sudo service repmgrd status || true
+}
+
+check_cluster_status() {
+    sudo -u deploy-user repmgr -f /apps/${SERVICE}/repmgr.conf cluster show | grep ${HOST} || true
+}
+
+check_in_recovery
+repmgr_status
+check_cluster_status
